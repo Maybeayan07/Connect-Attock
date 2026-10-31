@@ -1,0 +1,13 @@
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { SiteLayout } from './layouts/SiteLayout'
+import { useAuth } from './hooks/useAuth'
+import { Home } from './pages/Home'
+import { PublicPage } from './pages/public/PublicPages'
+import { ForgotPassword, Login, ResetPassword, Signup, VerifyEmail } from './pages/auth/AuthPages'
+import { Dashboard, ProfileSettings } from './pages/app/AppPages'
+import { Loader2 } from 'lucide-react'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) { const { user, profile, loading } = useAuth(); const location = useLocation(); if (loading) return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="animate-spin text-cyan-600" size={28} /></div>; if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />; if (profile?.account_status === 'suspended' || profile?.account_status === 'deactivated') return <Navigate to="/login?reason=account-status" replace />; return <>{children}</> }
+function RoutePage({ path }: { path: string }) { return <PublicPage path={path} /> }
+
+export function App() { return <Routes><Route element={<SiteLayout />}><Route path="/" element={<Home />} /><Route path="/find-a-ride" element={<RoutePage path="/find-a-ride" />} /><Route path="/offer-a-ride" element={<RoutePage path="/offer-a-ride" />} /><Route path="/shopping" element={<RoutePage path="/shopping" />} /><Route path="/cargo-delivery" element={<RoutePage path="/cargo-delivery" />} /><Route path="/how-it-works" element={<RoutePage path="/how-it-works" />} /><Route path="/about" element={<RoutePage path="/about" />} /><Route path="/contact" element={<RoutePage path="/contact" />} /><Route path="/faq" element={<RoutePage path="/faq" />} /><Route path="/terms" element={<RoutePage path="/terms" />} /><Route path="/privacy" element={<RoutePage path="/privacy" />} /><Route path="/cancellation-refund" element={<RoutePage path="/cancellation-refund" />} /><Route path="/prohibited-items" element={<RoutePage path="/prohibited-items" />} /><Route path="/login" element={<Login />} /><Route path="/signup" element={<Signup />} /><Route path="/forgot-password" element={<ForgotPassword />} /><Route path="/reset-password" element={<ResetPassword />} /><Route path="/verify-email" element={<VerifyEmail />} /><Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} /><Route path="/profile" element={<ProtectedRoute><ProfileSettings /></ProtectedRoute>} /><Route path="*" element={<Navigate to="/" replace />} /></Route></Routes> }
