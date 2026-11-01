@@ -36,6 +36,17 @@
 - [ ] Run authenticated Supabase smoke tests against the user’s project after env configuration.
 - [ ] Connect the project to the user’s GitHub repository through the managed GitHub confirmation flow if the user confirms the target.
 
+## Phase 2 — Ride Sharing
+
+- [x] Add a new versioned migration without editing the Phase 1 migration. Extend ride/booking statuses, add configurable route locations/settings, hold/OTP/reliability fields, safe indexes and RLS for rides, stops, bookings, vehicles, booking history, notifications and ride reviews.
+- [x] Implement transactional Postgres RPCs with row locks for ride creation/update/publish/cancel, booking request/accept/reject/cancel/expiry, trip start/complete/no-show, review submission and dev-only sandbox confirmation. Seat availability must never be calculated or mutated in the frontend.
+- [x] Implement provider ride publishing and management with approved-driver gating, saved vehicle management, stops, pickup/drop-off map selection, edit restrictions, cancellation reasons, requests, passenger list, trip lifecycle, OTP handoff and display-only earnings/history.
+- [x] Implement passenger search with route/date/time filters, max fare, departure range, minimum seats, sorting and server-side pagination; ride detail with sanitized public driver/vehicle data, map route preview, policy acceptance, request/cancel and booking timeline.
+- [x] Implement in-app notifications with unread count, mark-read, notifications page and Supabase Realtime updates for ride events.
+- [x] Implement ride ratings after completed bookings only, one review per direction, aggregate driver rating updates and review reporting.
+- [x] Add Leaflet/OpenStreetMap manual map selection and OSRM development route preview. Request browser location only through the standard permission prompt; block current-location actions when denied and document desktop accuracy/demo routing limits.
+- [x] Add Vitest logic tests, migration/security static checks and a manual Supabase RLS/concurrency test script. Local tests and static checks pass; live Supabase/RLS/concurrency execution remains open until project credentials and test accounts are configured. Report untestable multi-user/GPS/cron behavior honestly.
+
 ## Explicitly not complete in Phase 1
 
 - Ride publishing/search/request/acceptance/payment/booking/trip/GPS/rating workflows.

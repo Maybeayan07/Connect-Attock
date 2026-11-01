@@ -1,56 +1,85 @@
 # Connect Attock
 
-Connect Attock is a route-aware marketplace foundation for people moving between Rawalpindi and Attock: **Travel. Shop. Send.** Phase 1 delivers the product foundation, brand system, public pages, Supabase-ready authentication, protected dashboard/profile settings, and the complete database/RLS scaffolding for later service workflows.
+Connect Attock is a route-aware marketplace for people moving between Rawalpindi and Attock: **Travel. Shop. Send.** Phase 1 delivered the product foundation and Phase 2 now implements the ride-sharing module end to end around database-owned transitions.
 
-## What works in Phase 1
+## What works in Phase 2
 
-The Vite + React + TypeScript app includes a responsive navy/cyan design system, shared navigation and footer, homepage, public service pages, How It Works, About, Contact, FAQ and draft policy pages. Auth screens cover signup, login, Google OAuth entry point, forgot/reset password, email verification messaging, protected routes, logout and account deactivation. When Supabase env vars are configured, account actions use the real Supabase Auth client; without them, the UI explains what must be configured instead of inventing a session. The profile screen reads and updates `profiles` through RLS.
+The app includes a responsive navy/cyan design system, Supabase Auth/profile foundation, passenger ride search with route/date/time/fare/seat filters and server-side pagination, sanitized ride detail pages, provider ride creation/edit/publish/cancel flows, approved-provider gating, vehicle records, pickup/drop-off map selection, intermediate stops, booking requests, provider accept/reject, temporary unpaid seat holds, cancellation reasons, trip start/complete/no-show actions, passenger completion OTPs, in-app notifications with unread count/mark-read/Realtime subscription, and ride reviews after completion.
 
-The migration under `supabase/migrations/` creates every requested Phase 1 table, controlled statuses, UUID keys, constraints, indexes, timestamps, profile/role triggers, admin helper functions and restrictive RLS policies. Sensitive verification documents are designed for a private Storage bucket and signed URLs.
+Seat availability is never calculated in the browser. Requests, acceptance, cancellation, expiry, trip lifecycle, OTP verification and review eligibility use security-definer Postgres RPCs. The acceptance RPC locks the ride row with `FOR UPDATE`, and hold expiry releases seats through a database function.
 
-## What is intentionally not complete
+The payment state is intentionally honest: provider acceptance ends in `awaiting_payment`. The optional control labelled **DEV-ONLY sandbox confirmation** is visible only when `VITE_ENABLE_DEV_RIDE_CONFIRM=true` and the signed-in user is an admin. It requires the database setting `dev_ride_confirmation_enabled=true` and never processes real money.
 
-Phase 2 ride publishing/search/request/acceptance/seat reservation/trip/GPS flows are not implemented. Shopping, cargo, real payments, provider verification review, notifications, ratings, complaints, admin operations and Realtime location sharing are also not implemented. The public pages describe these as later workflows and do not pretend that a button created a booking or payment.
+## Explicitly out of scope
 
-## Local setup
+Phase 2 does not implement payments, refunds, webhooks, shopping, cargo, background/live GPS tracking, SMS, email notifications or admin verification UI. Browser location is only used for optional pickup/drop-off selection after a normal permission prompt. The route preview uses the public OSRM demo server for development/testing and must be replaced or proxied responsibly before production traffic.
+
+## Setup
 
 1. Create a Supabase project on the free tier.
-2. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` with the browser-safe values from Supabase Project Settings → API.
-3. Open the Supabase SQL editor and run `supabase/migrations/202610310001_phase1_foundation.sql`.
-4. In Supabase Auth, enable Email provider and configure the Site URL plus redirect URLs for the local dev URL and deployed Vercel URL. Enable Google provider only after creating Google OAuth credentials; use the Supabase callback URL shown in its provider settings.
-5. Install and run:
+2. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+3. Run these migrations in order in Supabase SQL Editor:
+   - `supabase/migrations/202610310001_phase1_foundation.sql`
+   - `supabase/migrations/202610310002_phase2_ride_sharing.sql`
+4. In Supabase Auth, enable Email provider and configure Site URL plus redirect URLs for local Preview and the deployed URL. Configure Google OAuth only when its credentials are ready.
+5. In Supabase Database > Replication, enable Realtime for `public.notifications`.
+6. After reviewing shared-database implications, enable `pg_cron` and schedule hold expiry. A typical reviewed schedule is:
+
+```sql
+select cron.schedule(
+  'connect-attock-expire-ride-holds',
+  '* * * * *',
+  $$select public.expire_unpaid_ride_holds();$$
+);
+```
+
+7. For a non-production sandbox only, an admin may set:
+
+```sql
+update public.app_settings
+set value = 'true'::jsonb
+where key = 'dev_ride_confirmation_enabled';
+```
+
+Then set `VITE_ENABLE_DEV_RIDE_CONFIRM=true` locally. Keep both disabled in production.
+
+## Run and validate
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev              # managed Preview listens on port 3000
+pnpm typecheck
+pnpm test
+pnpm test:phase2-schema
+pnpm build
 ```
 
-The app runs on port 5173 locally. Use `pnpm typecheck` and `pnpm build` for checks.
+`src/features/rides/validation.test.ts` covers client validation. `scripts/check-phase2-schema.mjs` checks required RPC, lock and policy markers. `supabase/tests/phase2_ride_sharing_manual.sql` describes authenticated RLS, concurrent-last-seat, hold-expiry and OTP tests that require a real Supabase project and multiple test sessions.
 
 ## Environment variables
 
-Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` belong in the browser. Never expose a Supabase service-role key, database password, payment secret, webhook secret or private document URL in `VITE_*` variables. Future payment/GPS Edge Functions will use server-side secrets and verified callbacks.
+- `VITE_SUPABASE_URL` — browser-safe Supabase project URL.
+- `VITE_SUPABASE_ANON_KEY` — browser-safe Supabase anon key.
+- `VITE_ENABLE_DEV_RIDE_CONFIRM` — optional local-only flag for the admin sandbox confirmation control; it does not process payments.
+
+Never expose a service-role key, database password, payment secret, webhook secret or private document URL in `VITE_*` variables.
 
 ## Architecture
 
-- `src/layouts` contains the shared responsive shell.
-- `src/components` contains reusable brand, route, form and state primitives.
-- `src/pages` contains public, auth and protected surfaces.
-- `src/hooks/useAuth.tsx` owns Supabase session/profile state.
-- `src/lib` contains Supabase client setup, validation and shared navigation metadata.
-- `supabase/migrations` is the versioned data/security boundary.
-- `public/manus-routes.json` lists all application routes for managed hosting.
+- `src/layouts` — shared responsive shell and navigation.
+- `src/components` — reusable brand, form and state primitives.
+- `src/features/rides` — typed ride API/RPC calls, validation, Leaflet map/route preview and status helpers.
+- `src/features/notifications` — in-app notification state and Realtime subscription.
+- `src/pages/rides` — passenger, provider, booking, vehicle and notification workflows.
+- `src/hooks/useAuth.tsx` — Supabase session, profile and server-provided roles.
+- `supabase/migrations` — additive versioned data/security boundary.
+- `supabase/tests` — manual project-level security/concurrency checks.
+- `public/manus-routes.json` — complete managed hosting route manifest.
 
-The design uses Route Ledger Modernism: editorial wayfinding, deep navy safety anchors, Route Cyan action signals, and compact status language. Animations are low-amplitude and disabled for reduced-motion preferences.
+## Known limitations and risks
 
-## Free-tier constraints and future cost notes
-
-The project uses free-tier-friendly Supabase, Vercel, GitHub, Leaflet and OpenStreetMap as requested. Public OSM routing/demo servers are for development/testing only and require responsible usage; production routing may need a hosted provider. SMS OTP, payment gateways such as JazzCash/Safepay/Easypaisa, email volume beyond provider limits, custom domains and higher database/storage/egress usage may cost money later. Phase 1 uses no paid service and no real-money payment.
+Live Supabase Auth/Profile/RPC smoke tests were not possible without the user's project URL/key and test accounts. Real concurrent requests, RLS isolation, pg_cron execution, browser GPS accuracy and multiple-device Realtime behavior require the manual project tests. The OSRM public demo server is not a production SLA. Provider verification documents remain a private-schema/storage boundary; admin review UI is a later phase.
 
 ## Deployment
 
-For Vercel, import the repository, set the two `VITE_*` variables, build with `pnpm build` and publish the `dist` directory. Configure Supabase Auth redirect URLs for the final Vercel URL. Connect Attock's managed project checkpoint should be pushed to the user's GitHub through the Webdev GitHub confirmation flow rather than by pasting secrets or creating a separate unmanaged repository.
-
-## Validation record
-
-Phase 1 was checked with source inspection, TypeScript diagnostics, `pnpm typecheck` and `pnpm build`. Live Auth/Profile smoke tests remain blocked until the user's Supabase project URL/key, email settings and optional Google OAuth credentials are configured. Phase 2 should begin only after approval of this foundation.
+For Vercel, set the browser-safe environment variables, build with `pnpm build` and publish `dist`. Configure Supabase redirect URLs for the final domain. The managed GitHub transfer to `Maybeayan07/Connect-Attock` remains paused until the platform confirmation card is completed; do not paste secrets or use a separate unmanaged repository.

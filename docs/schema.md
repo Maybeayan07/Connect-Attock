@@ -1,27 +1,23 @@
-# Connect Attock schema notes
 
-The Phase 1 migration is `supabase/migrations/202610310001_phase1_foundation.sql`. It is intended for a Supabase PostgreSQL project and assumes Supabase Auth's `auth.users` table.
 
-## Core ownership
+## Phase 2 migration
 
-`profiles` is one-to-one with `auth.users`. A trigger creates a default `customer` role after signup. `user_roles` is deliberately not editable by normal users; only admins can insert/update/delete roles. `driver_profiles`, `vehicles`, offers and service records carry explicit provider ownership. Admin checks use the `security definer` `has_role()` / `is_admin()` helpers with a fixed `search_path`.
+`supabase/migrations/202610310002_phase2_ride_sharing.sql` is additive and must run after the Phase 1 migration. It does not rewrite the old migration. It adds `app_settings` for hold/cancellation/start/OTP configuration and `route_locations` for the configured Rawalpindi ↔ Attock route.
 
-## Service records
+The ride flow uses the existing `rides`, `ride_stops`, `ride_bookings`, `vehicles`, `notifications`, `booking_status_history` and `reviews` tables with new hold, cancellation, OTP, completion and provider aggregate fields. Booking states include requested, accepted, awaiting_payment, confirmed, rejected, cancelled_by_passenger, cancelled_by_driver, expired, completed and no_show. The legacy `payment_pending`/`cancelled` enum values remain for compatibility but are not used by the new RPC flow.
 
-`rides` and `ride_bookings` prepare route, seat, price and booking state. `shopping_offers`, `shopping_orders` and `shopping_order_items` separate product cost, shopping fee and delivery charge. `cargo_offers` and `cargo_orders` include unique tracking numbers, standard/doorstep pricing fields, OTP hashes, photos and delivery status. Phase 2 must use server-side transactions when changing seats or accepting bookings so double booking/overbooking cannot occur.
+## Seat safety and transitions
 
-## Money and auditability
+The browser never performs seat arithmetic. `request_ride_booking`, `driver_respond_ride_booking`, `cancel_ride_booking`, `cancel_ride`, and `expire_unpaid_ride_holds` lock the relevant ride/booking rows and update seats inside a transaction. Provider acceptance records an `accepted` history event, immediately enters the clearly labelled `awaiting_payment` state and stores a default 15-minute hold. `expire_unpaid_ride_holds()` releases held seats and creates history/notifications. Schedule it through reviewed Supabase `pg_cron` configuration; the migration only supplies the safe callable function.
 
-All money is stored as `numeric(12,2)` with an explicit currency on payments. `payments` carries a unique idempotency key and references exactly one service record. `payment_transactions` holds provider references, event IDs and signature-verification state. Refunds, commissions and settlements have separate records so later sandbox payment adapters can be provider-independent and auditable.
+## OTP and completion
 
-## Privacy and RLS
+A passenger can issue a short OTP while a ride is in progress. Only the SHA-256 hash and expiry are stored. The driver submits the code through `driver_confirm_passenger_dropoff`; wrong attempts are counted and capped. The passenger then confirms completion, after which the booking is eligible for one passenger-to-driver and one driver-to-passenger review. Driver aggregate rating and completed-trip counters update inside the review/completion functions.
 
-Every application table has RLS enabled. Public visibility is limited to published offer/ride data; private participant data is limited to authorized users and admins. `verification_documents` only exposes owner/admin rows and is intended for a private Storage bucket with signed URLs. `location_updates` only exposes authorized booking participants or admins; later code must stop writing location updates when a job completes/cancels. The browser must request Geolocation permission normally and must not claim background tracking after closure.
+## RLS and public data
 
-## Admin and operational tables
+Ride reads expose published/full/in-progress/completed ride rows and stops, while private booking rows are limited to the passenger, the ride driver or an admin. Direct writes for ride transitions, bookings, booking history and reviews are removed or admin-only; authenticated clients use the security-definer RPCs. `get_ride_detail` returns only public driver profile fields and vehicle details, never verification documents or private storage paths. Notifications are owner-readable and should be added to Supabase Realtime publication by the project owner.
 
-`reviews`, `reports`, `complaints`, `notifications`, `booking_status_history` and `audit_logs` prepare moderation, communication and audit trails. Admin dashboards and workflows are not implemented in Phase 1; the policies are conservative by default.
+## Manual verification
 
-## Migration safety
-
-Run the migration once in the user's Supabase project. Development and production data share the same Supabase project, so do not run destructive SQL casually. Before a future migration that removes or rewrites data, take an available export/backup and get explicit approval. Additive migrations should be preferred.
+Use `supabase/tests/phase2_ride_sharing_manual.sql` with two authenticated users to verify approved-provider gating, policy acceptance, passenger/driver RLS isolation, a concurrent last-seat request, hold expiry, OTP attempt limits and review uniqueness. Do not use a service-role client for RLS tests. The browser-level and real multi-device checks remain project-specific because the managed environment does not have the user's Supabase credentials.
