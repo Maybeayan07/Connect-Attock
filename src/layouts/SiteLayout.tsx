@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X, ArrowUpRight, MapPin, UserRound } from 'lucide-react'
 import { NAV_LINKS, cn } from '../lib/utils'
 import { useAuth } from '../hooks/useAuth'
+import { NotificationBell } from '../features/notifications/NotificationBell'
 
 export function BrandMark({ light = false }: { light?: boolean }) {
   return <Link to="/" className="group inline-flex items-center gap-3" aria-label="Connect Attock home"><span className={cn('relative grid h-10 w-10 place-items-center rounded-xl border', light ? 'border-white/20 bg-white/10' : 'border-navy-900/10 bg-navy-900')}><span className="font-display text-sm font-bold text-cyan-400">CA</span><span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-cyan-400 ring-4 ring-white" /></span><span className={cn('font-display text-lg font-bold tracking-tight', light ? 'text-white' : 'text-navy-900')}>Connect <span className={light ? 'text-cyan-400' : 'text-cyan-600'}>Attock</span></span></Link>
@@ -21,7 +22,7 @@ export function SiteLayout() {
           <NavLink to="/how-it-works" className={({ isActive }) => cn('text-sm font-semibold transition-colors hover:text-cyan-600', isActive ? 'text-cyan-600' : 'text-muted')}>How it works</NavLink>
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
-          {user ? <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 px-4 py-2 text-sm font-bold text-navy-900 hover:border-cyan-500 hover:text-cyan-600"><UserRound size={16} /> Dashboard</Link> : <><Link to="/login" className="px-3 py-2 text-sm font-bold text-navy-900 hover:text-cyan-600">Log in</Link><Link to="/signup" className="inline-flex items-center gap-2 rounded-full bg-navy-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-navy-900/15 transition hover:-translate-y-0.5 hover:bg-navy-800">Join the route <ArrowUpRight size={16} /></Link></>}
+          {user ? <><NotificationBell /><Link to="/dashboard" className="inline-flex items-center gap-2 rounded-full border border-navy-900/10 px-4 py-2 text-sm font-bold text-navy-900 hover:border-cyan-500 hover:text-cyan-600"><UserRound size={16} /> Dashboard</Link></> : <><Link to="/login" className="px-3 py-2 text-sm font-bold text-navy-900 hover:text-cyan-600">Log in</Link><Link to="/signup" className="inline-flex items-center gap-2 rounded-full bg-navy-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-navy-900/15 transition hover:-translate-y-0.5 hover:bg-navy-800">Join the route <ArrowUpRight size={16} /></Link></>}
         </div>
         <button type="button" onClick={() => setOpen((value) => !value)} className="grid h-11 w-11 place-items-center rounded-full border border-navy-900/10 lg:hidden" aria-expanded={open} aria-label="Toggle menu">{open ? <X size={21} /> : <Menu size={21} />}</button>
       </div>
