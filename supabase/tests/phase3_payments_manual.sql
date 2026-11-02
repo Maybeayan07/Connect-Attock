@@ -1,0 +1,15 @@
+-- Manual Phase 3 verification. Use a disposable Supabase project, two authenticated users and the Mock provider.
+-- Do not run with the service role when testing RLS.
+
+-- 1. Passenger A cannot select passenger B's payments; provider cannot select payer payment details.
+-- 2. Authenticated clients cannot insert/update/delete payments, payment_transactions, refunds, settlements or commissions.
+-- 3. Call create-checkout twice for the same awaiting_payment booking through the Edge Function; verify one pending payment and the same payment ID/checkout URL.
+-- 4. Send a valid signed success webhook twice with the same provider_event_id; verify one transaction and one booking confirmation.
+-- 5. Send two valid signed success webhooks concurrently for different event IDs; verify row locking prevents duplicate confirmation/ledger processing.
+-- 6. Send a wrong signature, missing signature, stale timestamp and tampered amount; verify rejection or under_review, never confirmation.
+-- 7. Expire the booking hold, then send a valid success webhook; verify payment under_review, refund requested, booking remains expired and seats are not restored as confirmed.
+-- 8. Send failure/cancel webhook while the hold is live; verify retry remains possible. Repeat create-checkout and verify no duplicate active payment.
+-- 9. Request full/partial refund; verify a refund over the paid amount minus prior refunds fails and non-admin refund calls fail.
+-- 10. Complete a paid booking; verify a settlement is eligible only after completion. Non-admin mark-paid fails; admin mark-paid creates an audit log.
+-- 11. Driver cancellation of a paid booking creates a refund request and payment under_review.
+-- 12. Verify service-role Edge secrets are not in browser bundles or repository files.
