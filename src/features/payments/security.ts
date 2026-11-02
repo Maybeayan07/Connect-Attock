@@ -1,0 +1,3 @@
+export function constantTimeEqual(left: string, right: string) { if (left.length !== right.length) return false; let result = 0; for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index); return result === 0 }
+export function isFreshTimestamp(timestamp: string, nowSeconds = Math.floor(Date.now() / 1000), toleranceSeconds = 300) { const parsed = Number(timestamp); return Number.isFinite(parsed) && Math.abs(nowSeconds - parsed) <= toleranceSeconds }
+export function safeWebhookStatus(value: unknown) { return value === 'succeeded' || value === 'failed' || value === 'cancelled' || value === 'pending' ? value : null }

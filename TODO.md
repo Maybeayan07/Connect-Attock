@@ -55,3 +55,13 @@
 - Live provider tracking, routing provider integration and Supabase Realtime event flows.
 - Real payments, refunds, settlements, commissions and webhook verification.
 - Provider verification review, admin operations, notifications, complaints, reports and analytics beyond schema/UI scaffolding.
+
+## Phase 3 — Sandbox Payments
+
+- [ ] Run the additive Phase 3 migration in the user's Supabase project and verify the locked payment/refund/settlement RPCs with authenticated sessions.
+- [x] Replace the browser DEV confirmation path with server-only idempotent checkout creation, signed Mock Sandbox webhooks, duplicate-event handling, amount/currency mismatch review and hold-expiry refund review.
+- [x] Add provider-independent Edge Function adapter structure, tested Mock Sandbox provider, explicit untested Safepay skeleton and documented JazzCash/Easypaisa extension points.
+- [x] Add strict payment/ledger/refund/settlement RLS, append-only payment transaction guard, commission snapshots, refund overage protection and post-completion settlement eligibility.
+- [x] Add passenger pay/countdown/return/history screens, provider earnings, minimal admin payment/refund/settlement/settings screens and payment notifications.
+- [x] Add money/security unit tests, static client-confirmation audit, migration/manual Edge/RLS test scripts and Phase 3 payment documentation.
+- [ ] Run real Supabase Auth/RLS, concurrent webhook, expiry-race, duplicate-webhook, Edge secret, pg_cron and multi-user tests; do not mark these complete without project credentials and test accounts.

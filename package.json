@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:phase2-schema": "node scripts/check-phase2-schema.mjs",
+    "test:phase3-security": "node scripts/check-phase3-security.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0"
   },

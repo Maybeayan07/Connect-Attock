@@ -1,6 +1,6 @@
 # Connect Attock
 
-Connect Attock is a route-aware marketplace for people moving between Rawalpindi and Attock: **Travel. Shop. Send.** Phase 1 delivered the product foundation and Phase 2 now implements the ride-sharing module end to end around database-owned transitions.
+Connect Attock is a route-aware marketplace for people moving between Rawalpindi and Attock: **Travel. Shop. Send.** Phase 1 delivered the product foundation, Phase 2 implemented ride sharing, and Phase 3 adds sandbox-only payment orchestration around database-owned transitions.
 
 ## What works in Phase 2
 
@@ -8,11 +8,11 @@ The app includes a responsive navy/cyan design system, Supabase Auth/profile fou
 
 Seat availability is never calculated in the browser. Requests, acceptance, cancellation, expiry, trip lifecycle, OTP verification and review eligibility use security-definer Postgres RPCs. The acceptance RPC locks the ride row with `FOR UPDATE`, and hold expiry releases seats through a database function.
 
-The payment state is intentionally honest: provider acceptance ends in `awaiting_payment`. The optional control labelled **DEV-ONLY sandbox confirmation** is visible only when `VITE_ENABLE_DEV_RIDE_CONFIRM=true` and the signed-in user is an admin. It requires the database setting `dev_ride_confirmation_enabled=true` and never processes real money.
+Provider acceptance ends in `awaiting_payment`, then the passenger starts a clearly labelled **SANDBOX — NO REAL MONEY** checkout. Only a verified, fresh, HMAC-signed provider webhook can move the payment to `succeeded` and the booking to `confirmed`. Duplicate events are ignored, amount/currency mismatches enter `under_review`, and success after hold expiry creates a refund request without confirming the expired booking.
 
 ## Explicitly out of scope
 
-Phase 2 does not implement payments, refunds, webhooks, shopping, cargo, background/live GPS tracking, SMS, email notifications or admin verification UI. Browser location is only used for optional pickup/drop-off selection after a normal permission prompt. The route preview uses the public OSRM demo server for development/testing and must be replaced or proxied responsibly before production traffic.
+Phase 3 does not implement real-money payments, live provider settlement, shopping, cargo, background/live GPS tracking, SMS, email notifications, Safepay sandbox execution or the full admin panel. Browser location is only used for optional pickup/drop-off selection after a normal permission prompt. The route preview uses the public OSRM demo server for development/testing and must be replaced or proxied responsibly before production traffic.
 
 ## Setup
 
@@ -21,6 +21,7 @@ Phase 2 does not implement payments, refunds, webhooks, shopping, cargo, backgro
 3. Run these migrations in order in Supabase SQL Editor:
    - `supabase/migrations/202610310001_phase1_foundation.sql`
    - `supabase/migrations/202610310002_phase2_ride_sharing.sql`
+   - `supabase/migrations/202611010001_phase3_sandbox_payments.sql`
 4. In Supabase Auth, enable Email provider and configure Site URL plus redirect URLs for local Preview and the deployed URL. Configure Google OAuth only when its credentials are ready.
 5. In Supabase Database > Replication, enable Realtime for `public.notifications`.
 6. After reviewing shared-database implications, enable `pg_cron` and schedule hold expiry. A typical reviewed schedule is:
@@ -33,15 +34,7 @@ select cron.schedule(
 );
 ```
 
-7. For a non-production sandbox only, an admin may set:
-
-```sql
-update public.app_settings
-set value = 'true'::jsonb
-where key = 'dev_ride_confirmation_enabled';
-```
-
-Then set `VITE_ENABLE_DEV_RIDE_CONFIRM=true` locally. Keep both disabled in production.
+7. Deploy the Edge Functions and set their server-only secrets as described in `docs/payments.md` and `supabase/functions/README.md`. Use `PAYMENT_PROVIDER=mock`; never put the service-role key or HMAC secret into `VITE_*` variables.
 
 ## Run and validate
 
@@ -51,16 +44,17 @@ pnpm dev              # managed Preview listens on port 3000
 pnpm typecheck
 pnpm test
 pnpm test:phase2-schema
+pnpm test:phase3-security
 pnpm build
 ```
 
-`src/features/rides/validation.test.ts` covers client validation. `scripts/check-phase2-schema.mjs` checks required RPC, lock and policy markers. `supabase/tests/phase2_ride_sharing_manual.sql` describes authenticated RLS, concurrent-last-seat, hold-expiry and OTP tests that require a real Supabase project and multiple test sessions.
+`src/features/rides/validation.test.ts` covers ride validation. `src/features/payments/calculations.test.ts` covers minor-unit money math, commission rounding and webhook helper behavior. The two static scripts check required database/security markers. `supabase/tests/phase2_ride_sharing_manual.sql` and `supabase/tests/phase3_payments_manual.sql` require a real Supabase project, Edge secrets and multiple authenticated sessions.
 
 ## Environment variables
 
 - `VITE_SUPABASE_URL` — browser-safe Supabase project URL.
 - `VITE_SUPABASE_ANON_KEY` — browser-safe Supabase anon key.
-- `VITE_ENABLE_DEV_RIDE_CONFIRM` — optional local-only flag for the admin sandbox confirmation control; it does not process payments.
+- Edge-only `PAYMENT_PROVIDER`, `PUBLIC_APP_URL` and `MOCK_WEBHOOK_SECRET` — set with `supabase secrets set`, never in browser `.env` files.
 
 Never expose a service-role key, database password, payment secret, webhook secret or private document URL in `VITE_*` variables.
 
@@ -70,7 +64,9 @@ Never expose a service-role key, database password, payment secret, webhook secr
 - `src/components` — reusable brand, form and state primitives.
 - `src/features/rides` — typed ride API/RPC calls, validation, Leaflet map/route preview and status helpers.
 - `src/features/notifications` — in-app notification state and Realtime subscription.
+- `src/features/payments` — browser-safe checkout/status calls and integer-unit display calculations.
 - `src/pages/rides` — passenger, provider, booking, vehicle and notification workflows.
+- `src/pages/payments` — sandbox checkout, return polling, payment history, provider earnings and minimal admin actions.
 - `src/hooks/useAuth.tsx` — Supabase session, profile and server-provided roles.
 - `supabase/migrations` — additive versioned data/security boundary.
 - `supabase/tests` — manual project-level security/concurrency checks.
@@ -78,8 +74,8 @@ Never expose a service-role key, database password, payment secret, webhook secr
 
 ## Known limitations and risks
 
-Live Supabase Auth/Profile/RPC smoke tests were not possible without the user's project URL/key and test accounts. Real concurrent requests, RLS isolation, pg_cron execution, browser GPS accuracy and multiple-device Realtime behavior require the manual project tests. The OSRM public demo server is not a production SLA. Provider verification documents remain a private-schema/storage boundary; admin review UI is a later phase.
+Live Supabase Auth/Profile/RPC/payment webhook smoke tests were not possible without the user's project URL/key, Edge secrets and test accounts. Real concurrent webhooks, RLS isolation, refund races, pg_cron execution, browser GPS accuracy and multiple-device Realtime behavior require the manual project tests. Safepay is an untested skeleton. The OSRM public demo server is not a production SLA. Provider verification documents remain a private-schema/storage boundary; the full admin panel is a later phase.
 
 ## Deployment
 
-For Vercel, set the browser-safe environment variables, build with `pnpm build` and publish `dist`. Configure Supabase redirect URLs for the final domain. The managed GitHub transfer to `Maybeayan07/Connect-Attock` remains paused until the platform confirmation card is completed; do not paste secrets or use a separate unmanaged repository.
+For Vercel, set the browser-safe environment variables, build with `pnpm build` and publish `dist`. Configure Supabase redirect URLs for the final domain. Deploy Edge Functions from the repository and set their server-only secrets through Supabase. This phase is committed only to the managed repository; do not push to GitHub from this workflow.

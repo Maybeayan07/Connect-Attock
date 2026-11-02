@@ -1,0 +1,11 @@
+import { supabase } from '../../lib/supabase'
+
+function requireClient() { if (!supabase) throw new Error('Connect Supabase before using sandbox payments.'); return supabase }
+async function invoke<T>(name: string, body?: Record<string, unknown>, options?: { query?: Record<string, string> }) { const client = requireClient(); const functionName = options?.query ? `${name}?${new URLSearchParams(options.query).toString()}` : name; const { data, error } = await client.functions.invoke(functionName, { body }); if (error) throw new Error(error.message); return data as T }
+
+export type PaymentStatusResponse = { payment: { id: string; payer_id: string; ride_booking_id: string; amount: string; currency: string; status: string; provider: string; provider_reference: string | null; expires_at: string | null; succeeded_at: string | null; failed_at: string | null; cancelled_at: string | null; under_review_reason: string | null; created_at: string; updated_at: string }; transactions: Array<{ id: string; event_type: string; transaction_type: string; amount: string; status: string; signature_verified: boolean; created_at: string; occurred_at: string | null }> }
+export async function createCheckout(bookingId: string) { return invoke<{ payment_id?: string; id?: string; amount: string | number; currency: string; status: string; expires_at: string | null; checkout_url: string; provider?: string }>('create-checkout', { booking_id: bookingId }) }
+export async function getPaymentStatus(paymentId: string) { return invoke<PaymentStatusResponse>('payment-status', undefined, { query: { payment_id: paymentId } }) }
+export async function mockPaymentAction(paymentId: string, action: 'success' | 'failure' | 'cancel' | 'replay') { return invoke<{ result?: { confirmed?: boolean; processed?: boolean; under_review?: boolean }; webhook_status: number }>('mock-payment-action', { payment_id: paymentId, action }) }
+export async function requestRefund(paymentId: string, amount: string | number, reason: string) { return invoke<{ refund_id: string; success: boolean }>('refund', { payment_id: paymentId, amount, reason }) }
+export async function markSettlementPaid(settlementId: string, reference: string) { return invoke<{ settlement_id: string; status: string }>('settlement-action', { settlement_id: settlementId, reference }) }

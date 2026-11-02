@@ -1,0 +1,5 @@
+export type PaymentUiStatus = 'created' | 'pending' | 'succeeded' | 'failed' | 'cancelled' | 'expired' | 'refunded' | 'partially_refunded' | 'under_review'
+export function paymentStatusLabel(status: string) { return ({ created: 'Checkout ready', pending: 'Payment pending', succeeded: 'Paid', failed: 'Payment failed', cancelled: 'Payment cancelled', expired: 'Payment expired', refunded: 'Refunded', partially_refunded: 'Partially refunded', under_review: 'Under review' } as Record<string, string>)[status] ?? status }
+export function paymentStatusTone(status: string): 'cyan' | 'green' | 'amber' | 'navy' { if (status === 'succeeded' || status === 'refunded') return 'green'; if (status === 'pending' || status === 'created' || status === 'under_review' || status === 'partially_refunded') return 'amber'; return 'navy' }
+export function secondsRemaining(expiresAt: string | null, now = Date.now()) { if (!expiresAt) return 0; return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000)) }
+export function formatCountdown(seconds: number) { return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}` }
