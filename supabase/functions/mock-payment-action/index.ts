@@ -4,6 +4,7 @@ import { signMockWebhook } from '../_shared/payment.ts'
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   try {
+    if (Deno.env.get('ALLOW_MOCK_PAYMENTS') !== 'true') return bad('Mock payments are disabled in this environment.', 403)
     const { user } = await requireUser(request)
     const body = await parseJson(request) as { payment_id?: string; action?: 'success' | 'failure' | 'cancel' | 'replay' }
     if (!body.payment_id || !body.action) return bad('payment_id and action are required')

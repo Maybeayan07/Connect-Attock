@@ -39,4 +39,7 @@ export class SafepaySandboxProvider implements PaymentProvider {
   refund(_payment: PaymentRecord, _amount: string, _reason: string) { return this.fail() }
 }
 
-export function providerFromEnv(): PaymentProvider { const provider = (Deno.env.get('PAYMENT_PROVIDER') ?? 'mock').toLowerCase(); if (provider === 'mock' || provider === 'mock_sandbox') return new MockSandboxProvider(); if (provider === 'safepay' || provider === 'safepay_sandbox') return new SafepaySandboxProvider(); throw new Error(`Unsupported PAYMENT_PROVIDER: ${provider}`) }
+export function providerFromEnv(): PaymentProvider {
+  const provider = (Deno.env.get('PAYMENT_PROVIDER') ?? 'mock').toLowerCase();
+  if ((provider === 'mock' || provider === 'mock_sandbox') && Deno.env.get('ALLOW_MOCK_PAYMENTS') !== 'true') throw new Error('Mock payments are disabled. Set ALLOW_MOCK_PAYMENTS=true only in a disposable test project.');
+  if (provider === 'mock' || provider === 'mock_sandbox') return new MockSandboxProvider(); if (provider === 'safepay' || provider === 'safepay_sandbox') return new SafepaySandboxProvider(); throw new Error(`Unsupported PAYMENT_PROVIDER: ${provider}`) }

@@ -58,16 +58,16 @@ Set these with Supabase Edge secrets, never in `VITE_*` variables:
 Deploy with:
 
 ```bash
-supabase functions deploy create-checkout --no-verify-jwt
+supabase functions deploy create-checkout
 supabase functions deploy payment-webhook --no-verify-jwt
-supabase functions deploy payment-status --no-verify-jwt
-supabase functions deploy refund --no-verify-jwt
-supabase functions deploy mock-payment-action --no-verify-jwt
-supabase functions deploy settlement-action --no-verify-jwt
-supabase secrets set PAYMENT_PROVIDER=mock PUBLIC_APP_URL=https://your-site.example MOCK_WEBHOOK_SECRET='generate-a-long-random-value'
+supabase functions deploy payment-status
+supabase functions deploy refund
+supabase functions deploy mock-payment-action
+supabase functions deploy settlement-action
+supabase secrets set PAYMENT_PROVIDER=mock PUBLIC_APP_URL=https://your-site.example MOCK_WEBHOOK_SECRET='generate-a-long-random-value' ALLOW_MOCK_PAYMENTS=false
 ```
 
-The functions validate the user JWT themselves because the webhook and mock provider callbacks are not user-authenticated routes. Keep the service-role key only in the Edge runtime.
+All user-facing functions validate the Supabase user JWT with `requireUser` and apply server-side role/ownership checks. Only `payment-webhook` uses `--no-verify-jwt`, because it authenticates the provider request with a fresh HMAC signature instead. Mock actions also fail closed unless `ALLOW_MOCK_PAYMENTS=true` is explicitly set in a disposable test project. Keep the service-role key only in the Edge runtime.
 
 ## Before going live
 
