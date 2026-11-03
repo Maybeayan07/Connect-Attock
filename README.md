@@ -46,6 +46,7 @@ pnpm typecheck
 pnpm test
 pnpm test:phase2-schema
 pnpm test:phase3-security
+pnpm test:enum-assignments
 pnpm build
 ```
 
@@ -89,3 +90,10 @@ The additive migration `supabase/migrations/202611030001_pre_phase4_fixes.sql` f
 Provider verification is available at `/provider/verification`. It accepts identity, driving licence, vehicle registration and vehicle image files into the private `verification-documents` bucket. Admin review is available at `/admin/provider-verification`; access is protected by the existing admin route and database RPC/RLS checks, while document previews use five-minute signed URLs.
 
 For a disposable test project, edit the email prefix in `supabase/tests/seed_test_users.sql`, then run it followed by `supabase/tests/pre_phase4_trigger_regression.sql`. The scripts are not a substitute for a real two-session RLS/concurrency test. `ALLOW_MOCK_PAYMENTS=true` is permitted only in a disposable Mock Sandbox project; it must be false or unset in production.
+
+
+## Enum assignment repair
+
+The additive migration `supabase/migrations/202611030002_enum_assignment_fixes.sql` repairs enum/text assignment failures in ride publishing/editing, booking history, ride status transitions, payment transaction webhooks, refunds and vehicle review. It must run after `202611030001_pre_phase4_fixes.sql`; earlier migrations remain unchanged. The full audit is documented in [`ENUM_ASSIGNMENT_REPORT.md`](./ENUM_ASSIGNMENT_REPORT.md).
+
+For a disposable Supabase project, run `supabase/tests/rpc_enum_smoke.sql` after applying all migrations. It attempts every public non-trigger RPC at least once and re-raises enum/type mismatch errors. Live execution requires `psql` and authenticated/test fixtures.
