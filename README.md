@@ -22,6 +22,7 @@ Phase 3 does not implement real-money payments, live provider settlement, shoppi
    - `supabase/migrations/202610310001_phase1_foundation.sql`
    - `supabase/migrations/202610310002_phase2_ride_sharing.sql`
    - `supabase/migrations/202611010001_phase3_sandbox_payments.sql`
+   - `supabase/migrations/202611030001_pre_phase4_fixes.sql`
 4. In Supabase Auth, enable Email provider and configure Site URL plus redirect URLs for local Preview and the deployed URL. Configure Google OAuth only when its credentials are ready.
 5. In Supabase Database > Replication, enable Realtime for `public.notifications`.
 6. After reviewing shared-database implications, enable `pg_cron` and schedule hold expiry. A typical reviewed schedule is:
@@ -54,7 +55,7 @@ pnpm build
 
 - `VITE_SUPABASE_URL` — browser-safe Supabase project URL.
 - `VITE_SUPABASE_ANON_KEY` — browser-safe Supabase anon key.
-- Edge-only `PAYMENT_PROVIDER`, `PUBLIC_APP_URL` and `MOCK_WEBHOOK_SECRET` — set with `supabase secrets set`, never in browser `.env` files.
+- Edge-only `PAYMENT_PROVIDER`, `PUBLIC_APP_URL`, `MOCK_WEBHOOK_SECRET` and `ALLOW_MOCK_PAYMENTS` — set with `supabase secrets set`, never in browser `.env` files. Keep `ALLOW_MOCK_PAYMENTS=false` outside a disposable test project.
 
 Never expose a service-role key, database password, payment secret, webhook secret or private document URL in `VITE_*` variables.
 
@@ -79,3 +80,12 @@ Live Supabase Auth/Profile/RPC/payment webhook smoke tests were not possible wit
 ## Deployment
 
 For Vercel, set the browser-safe environment variables, build with `pnpm build` and publish `dist`. Configure Supabase redirect URLs for the final domain. Deploy Edge Functions from the repository and set their server-only secrets through Supabase. This phase is committed only to the managed repository; do not push to GitHub from this workflow.
+
+
+## Pre-Phase-4 combined fixes
+
+The additive migration `supabase/migrations/202611030001_pre_phase4_fixes.sql` fixes the table-specific protected-field trigger bug, adds private provider verification storage and review RPCs, promotes approved providers server-side, and hardens Mock Sandbox Edge Functions. Run it after the Phase 1, Phase 2 and Phase 3 migrations; on an already migrated project, run only this new migration. The exact checklist and limitations are in [`PRE_PHASE4_REPORT.md`](./PRE_PHASE4_REPORT.md).
+
+Provider verification is available at `/provider/verification`. It accepts identity, driving licence, vehicle registration and vehicle image files into the private `verification-documents` bucket. Admin review is available at `/admin/provider-verification`; access is protected by the existing admin route and database RPC/RLS checks, while document previews use five-minute signed URLs.
+
+For a disposable test project, edit the email prefix in `supabase/tests/seed_test_users.sql`, then run it followed by `supabase/tests/pre_phase4_trigger_regression.sql`. The scripts are not a substitute for a real two-session RLS/concurrency test. `ALLOW_MOCK_PAYMENTS=true` is permitted only in a disposable Mock Sandbox project; it must be false or unset in production.
