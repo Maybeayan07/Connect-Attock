@@ -32,6 +32,8 @@ begin
   perform pg_temp.try_rpc('update_ride', $$select public.update_ride('00000000-0000-0000-0000-000000000000'::uuid,'Rawalpindi','Attock',timezone('utc',now()) + interval '1 day',2,400,'Smoke',null,null,null,'[]'::jsonb)$$);
   perform pg_temp.try_rpc('cancel_ride', $$select public.cancel_ride('00000000-0000-0000-0000-000000000000'::uuid,'Smoke')$$);
   perform pg_temp.try_rpc('search_published_rides', $$select count(*) from public.search_published_rides(null,null,null,null,null,null,1,'earliest',1,10)$$);
+  perform pg_temp.try_rpc('search_route_locations', $$select count(*) from public.search_route_locations('Attock',8)$$);
+  perform pg_temp.try_rpc('list_provider_rides', $$select count(*) from public.list_provider_rides()$$);
   perform pg_temp.try_rpc('get_ride_detail', $$select public.get_ride_detail('00000000-0000-0000-0000-000000000000'::uuid)$$);
   perform pg_temp.try_rpc('request_ride_booking', $$select public.request_ride_booking('00000000-0000-0000-0000-000000000000'::uuid,1,true)$$);
   perform pg_temp.try_rpc('driver_respond_ride_booking', $$select public.driver_respond_ride_booking('00000000-0000-0000-0000-000000000000'::uuid,false,'Smoke')$$);

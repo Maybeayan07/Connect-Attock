@@ -1,5 +1,7 @@
 
 
-## Verification upload fix
+## Stabilization migration
 
-Run the additive migration `supabase/migrations/202611080001_verification_storage_upload_fixes.sql` after `202611030001_pre_phase4_fixes.sql`. It keeps `verification-documents` private, configures bucket MIME/size limits, removes metadata-dependent INSERT checks, and enables safe owner replacement for pending or rejected documents. Validate a disposable Supabase project with `supabase/tests/verification_storage_rls.sql`. See [`VERIFICATION_UPLOAD_FIX_REPORT.md`](./VERIFICATION_UPLOAD_FIX_REPORT.md) for the exact scope and untested live-database boundaries.
+Run `supabase/migrations/202611110001_stabilization.sql` after the previous migrations. It fixes provider submission for users without a pre-existing `driver_profiles` row, seeds the route-location catalog, adds `search_route_locations`, replaces the ride publish/update RPCs with enum-safe versions, exposes request/held/confirmed seat metrics, and adds `list_provider_rides`. It also sets the private verification bucket MIME and size limits.
+
+Ride autocomplete uses the seeded catalog only. The optional `VITE_GEOCODER_URL` fallback is explicit-action only; do not use a public Nominatim endpoint for as-you-type requests. OpenStreetMap tiles and the public OSRM demo route preview remain development/testing integrations and must be replaced or approved before production scale.
