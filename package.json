@@ -12,6 +12,7 @@
     "test:phase3-security": "node scripts/check-phase3-security.mjs",
     "test:pre-phase4-fixes": "node scripts/check-pre-phase4-fixes.mjs",
     "test:enum-assignments": "node scripts/check-enum-assignments.mjs",
+    "test:ride-search": "node scripts/check-ride-search-contract.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0"
   },
